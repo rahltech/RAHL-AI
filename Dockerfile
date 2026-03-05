@@ -11,22 +11,30 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     libgomp1 \
     wget \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Copy requirements first
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir gunicorn
 
-# Copy application
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the entire project
 COPY . .
 
-# Create cache directory for models
-RUN mkdir -p /opt/render/project/.cache/huggingface
-ENV HF_HOME=/opt/render/project/.cache/huggingface
+# Install RAHL in development mode
+RUN pip install -e .
 
-# Build command will run during deployment
-RUN python -c "from rahl import RAHLPipeline; print('Loading models...')"
+# Create cache directory for models
+RUN mkdir -p /root/.cache/huggingface
+ENV HF_HOME=/root/.cache/huggingface
+
+# Test import (this will work now because RAHL is installed)
+RUN python -c "from rahl import RAHLPipeline; print('✓ RAHL successfully imported')"
+
+# Expose port
+EXPOSE 10000
 
 # Start command
 CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:10000", "--workers", "1", "--threads", "2", "--timeout", "300"]
